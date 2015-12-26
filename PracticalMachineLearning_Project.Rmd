@@ -1,0 +1,103 @@
+---
+title: "Practical Machine Learning Project"
+author: "Pete Siau"
+date: "December 21, 2015"
+output: html_document
+---
+### Introduction
+#### Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+### Data
+#### There are two datasets provided: training data and test data. The data  come from this source: http://groupware.les.inf.puc-rio.br/har
+
+### Goal
+#### The project goal is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. A report is created to describe how the model was built, how was it used for cross validation, what is the expected out of sample error is, and why you made the choices you did. The prediction model is used to predict 20 different test cases.
+
+### Environment
+#### Setting up the environment using the following chunks:
+```{r}
+library(caret)
+library(ggplot2)
+library(randomForest)
+```
+
+### Data Loading
+#### Load the training and test datasets provided, and remove unwanted "DIV/0!"" and "blank" values with NA value
+```{r}
+trainingset <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!",""))
+testingset <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!",""))
+
+dim(trainingset)
+dim(testingset)
+
+table(trainingset$classe)
+
+```
+### Data Preprocessing
+#### Clean up the dataset by removing columns with missing value and irrelevent variables
+
+```{r}
+# Remove columns with all missing values
+trainingset <- trainingset[, colSums(is.na(trainingset)) == 0] 
+testingset <- testingset[, colSums(is.na(testingset)) == 0] 
+
+# Remove irrevelent variables like the user_name, raw_timestamp_part_1, etc. from column 1 to 7.
+trainingset <- trainingset[,-c(1:7)]
+testingset <- testingset[,-c(1:7)]
+```
+
+### Data Partitioning
+#### Create data partition for the training and test (out-of-sample) datasets
+
+```{r}
+# Set seed for report reproducibility
+set.seed(777)
+
+# To perform cross-validation, the training data set is partionned into 2 sets: Training (80%) and Testing (20%).
+trainingPart <- createDataPartition(y = trainingset$classe, p = 0.8, list = FALSE)
+Training <- trainingset[trainingPart,]
+Testing <- trainingset[-trainingPart,]
+
+# Check the number of observations, features and the distribution of "classe" variable.
+
+dim(Training)
+dim(Testing)
+table(Training$classe)
+
+```
+#### The data partitioning has created the training data with 19,622 observations and 160 features, the testing (out-of-sample) data with 20 observarions and 160 features, and the "classe" distribution of 5 measured stances A,B,C,D,E.
+
+### The Model and Methodology
+#### The Random Forests method is selected to build the prediction model. The reason Random Forests algorithm is chosen over other algorithms is that it is suitable in handling a large number of inputs, especially when the interactions between variables are unknown. It gives estimates of what variables are important in the classification.
+
+#### The model will first be tested on the 80% of the training dataset, follow by a cross validation test on the remaining 20% (out-ofsample) data. Finally a prediction test against the test set provided.
+
+```{r}
+
+Model1 <- randomForest(classe ~., data=Training, importance = TRUE, ntrees = 10)
+Model1
+
+# Test on model accuracy using confusionMatrix to calculates a cross-tabulation of observed and predicted classes with associated statistics.
+prediction_training <- predict(Model1, Training)
+confusionMatrix(prediction_training, Training$classe)
+
+```
+#### The result of the prediction model that ran against the training data came out to be very good with near perfaction of 99.99% accuracy. 
+
+### Cross Validation - To check the prediction accuracy on Out-of-Sample data
+
+```{r}
+# Test on cross validation set accuracy (Out-of-Sample)
+prediction_testing <- predict(Model1, Testing)
+confusionMatrix(prediction_testing, Testing$classe)
+```
+### Conclusion
+#### The Random Forest algorithm worked out very well as the results from the confusion matrix showed the prediction accuracy on both the training and out-of-sample data achieved 100% and 99.64% respectively. The out-of-sample error is 0.36%.
+
+
+### Prediction on the Test Data
+#### Prediction on Test dataset 20 different test cases.
+```{r}
+predictions <- predict(Model1, testingset)
+predictions
+```
